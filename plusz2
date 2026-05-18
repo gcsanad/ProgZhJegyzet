@@ -1,0 +1,107 @@
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <string>
+#include <stdexcept>
+#include <cstring> // strncpy miatt
+
+using namespace std;
+
+class Compressor {
+private:
+    vector<string> fajlnevek;
+
+public:
+    // Fájlok hozzáadása a tömörítési listához
+    void fajlHozzaadas(const string& fajlnev) {
+        fajlnevek.push_back(fajlnev);
+    }
+
+    // A tömörítő (összefűző) logika
+    void tomorit(const string& kimenetiFajl) {
+        // Hibakezelés (Kivétel dobása, ha nincs mit tömöríteni)
+        if (fajlnevek.empty()) {
+            throw runtime_error("Nincsenek megadva fajlok a tomoriteshez!");
+        }
+
+        // Kimeneti bináris fájl megnyitása
+        ofstream kimenet(kimenetiFajl, ios::binary);
+        if (!kimenet.is_open()) {
+            throw runtime_error("Kimeneti fajl letrehozasa sikertelen: " + kimenetiFajl);
+        }
+
+        int fajlazonosito = 0xABCD1234; // Önkényes 4 bájtos azonosító
+        int fajlokSzama = fajlnevek.size();
+
+        // --- FEJLÉC RÉSZ LÉTREHOZÁSA ---
+        // 1. Fájlazonosító (4 bájt)
+        kimenet.write(reinterpret_cast<const char*>(&fajlazonosito), sizeof(fajlazonosito));
+        // 2. Fájlok száma (4 bájt)
+        kimenet.write(reinterpret_cast<const char*>(&fajlokSzama), sizeof(fajlokSzama));
+
+        vector<int> meretek;
+        vector<vector<char>> tartalmak;
+
+        // Fájlok beolvasása és méretük megállapítása
+        for (const auto& nev : fajlnevek) {
+            ifstream bemenet(nev, ios::binary | ios::ate); // Végére ugrunk a méret miatt
+            if (!bemenet.is_open()) {
+                throw runtime_error("Hiba a bemeneti fajl megnyitasakor: " + nev);
+            }
+            
+            int meret = bemenet.tellg();
+            meretek.push_back(meret);
+            
+            bemenet.seekg(0, ios::beg); // Vissza az elejére
+            vector<char> buffer(meret);
+            if (bemenet.read(buffer.data(), meret)) {
+                tartalmak.push_back(buffer);
+            }
+            bemenet.close();
+        }
+
+        // 3. Egész típusú tömb a méretekkel (fájlonként 4 bájt)
+        for (int m : meretek) {
+            kimenet.write(reinterpret_cast<const char*>(&m), sizeof(m));
+        }
+
+        // --- ÁLLOMÁNYSZEKCIÓK ---
+        for (size_t i = 0; i < fajlnevek.size(); ++i) {
+            char nevBuffer[32] = {0}; // Inicializálás nullákkal
+            
+            // Fájlnév másolása a 32 bájtos bufferbe (biztonságosan)
+            for(size_t j = 0; j < fajlnevek[i].length() && j < 31; ++j) {
+                nevBuffer[j] = fajlnevek[i][j];
+            }
+            
+            // 32 bájtos név kiírása
+            kimenet.write(nevBuffer, 32);
+            
+            // Fájltartalom kiírása
+            kimenet.write(tartalmak[i].data(), tartalmak[i].size());
+        }
+
+        kimenet.close();
+        cout << "Tomorites (osszefuzes) sikeresen befejezodott a(z) " << kimenetiFajl << " fajlba!" << endl;
+    }
+};
+
+int main() {
+    Compressor comp;
+
+    /* TESZTELÉSHEZ ELŐKÉSZÜLET: 
+       Hozzon létre két teszt fájlt a futtatás könyvtárában:
+       test1.txt és test2.txt néven, bármilyen tartalommal. */
+       
+    comp.fajlHozzaadas("test1.txt");
+    comp.fajlHozzaadas("test2.txt");
+
+    // (+2p) Hibakezelés - Try-Catch blokk
+    try {
+        comp.tomorit("archívum.bin");
+    } catch (const exception& e) {
+        cerr << "Futasideju hiba tortent: " << e.what() << endl;
+    }
+
+    return 0;
+}
