@@ -1,0 +1,124 @@
+#include <iostream>
+#include <cstdlib>
+#include <ctime>
+#include <set>
+#include <fstream>
+
+using namespace std;
+
+// Függvény a különböző mássalhangzók megszámolására
+int kulonbozoMassalhangzok(const char* tomb, int meret) {
+    set<char> massalhangzok;
+    for (int i = 0; i < meret; ++i) {
+        char c = tomb[i];
+        // Ha nem magánhangzó (és kisbetűs az abc-ből)
+        if (c != 'a' && c != 'e' && c != 'i' && c != 'o' && c != 'u') {
+            massalhangzok.insert(c);
+        }
+    }
+    return massalhangzok.size();
+}
+
+// Eljárás a magánhangzók számjegyekké alakítására
+void maganhangzoCsere(char* tomb, int meret) {
+    for (int i = 0; i < meret; ++i) {
+        switch (tomb[i]) {
+            case 'a': tomb[i] = '1'; break;
+            case 'e': tomb[i] = '2'; break;
+            case 'i': tomb[i] = '3'; break;
+            case 'o': tomb[i] = '4'; break;
+            case 'u': tomb[i] = '5'; break;
+        }
+    }
+}
+
+// Eljárás egy adott karakter törlésére a tömbből (dinamikus átméretezéssel)
+void karakterTorles(char*& tomb, int& meret, char torlendo) {
+    int ujMeret = 0;
+    // Megszámoljuk, mennyi marad
+    for (int i = 0; i < meret; ++i) {
+        if (tomb[i] != torlendo) ujMeret++;
+    }
+
+    // Új tömb foglalása
+    char* ujTomb = new char[ujMeret];
+    int j = 0;
+    for (int i = 0; i < meret; ++i) {
+        if (tomb[i] != torlendo) {
+            ujTomb[j++] = tomb[i];
+        }
+    }
+
+    // Régi memória felszabadítása, mutató átállítása
+    delete[] tomb;
+    tomb = ujTomb;
+    meret = ujMeret;
+}
+
+// Bónusz: Különböző karakterek fájlba írása
+void kulonbozoKarakterekFajlba(const char* tomb, int meret, const string& fajlnev) {
+    set<char> egyediKarakterek(tomb, tomb + meret); // A set automatikusan szűri a duplikátumokat
+    ofstream kimenet(fajlnev);
+    if (kimenet.is_open()) {
+        for (char c : egyediKarakterek) {
+            kimenet << c << " ";
+        }
+        kimenet.close();
+        cout << "Egyedi karakterek kimentve a '" << fajlnev << "' fajlba." << endl;
+    } else {
+        cerr << "Hiba a fajl megnyitasakor!" << endl;
+    }
+}
+
+int main() {
+    srand(static_cast<unsigned>(time(0)));
+
+    // 1. Három egész érték bekérése
+    int a, b, c;
+    cout << "Adjon meg 3 egesz szamot (szokozzel elvalasztva): ";
+    cin >> a >> b >> c;
+
+    // 2. Memóriafoglalás (A három szám összegét használjuk méretként)
+    int meret = a + b + c;
+    if (meret <= 0) {
+        cout << "A meretnek pozitivnak kell lennie!" << endl;
+        return 1;
+    }
+    
+    char* karakterek = new char[meret];
+
+    // Feltöltés véletlenszerű kisbetűkkel
+    cout << "Eredeti tomb: ";
+    for (int i = 0; i < meret; ++i) {
+        karakterek[i] = 'a' + rand() % 26;
+        cout << karakterek[i];
+    }
+    cout << endl;
+
+    // 3. Különböző mássalhangzók száma
+    int mhDb = kulonbozoMassalhangzok(karakterek, meret);
+    cout << "Kulonbozo massalhangzok szama: " << mhDb << endl;
+
+    // 4. Magánhangzók cseréje
+    maganhangzoCsere(karakterek, meret);
+    cout << "Maganhangzok csereje utan: ";
+    for (int i = 0; i < meret; ++i) cout << karakterek[i];
+    cout << endl;
+
+    // 5. Karakter törlése
+    char torlendok;
+    cout << "Adjon meg egy torlendo karaktert: ";
+    cin >> torlendok;
+    karakterTorles(karakterek, meret, torlendok);
+    cout << "Torles utan: ";
+    for (int i = 0; i < meret; ++i) cout << karakterek[i];
+    cout << endl;
+
+    // +2p: Fájlba írás
+    kulonbozoKarakterekFajlba(karakterek, meret, "egyedi_karakterek.txt");
+
+    // Memória felszabadítása
+    delete[] karakterek;
+
+    return 0;
+}
